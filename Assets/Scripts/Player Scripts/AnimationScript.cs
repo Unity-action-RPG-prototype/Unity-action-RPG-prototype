@@ -19,6 +19,7 @@ public class AnimationScript : MonoBehaviour
     public int crouch;
     public int combat;
     public int sprint;
+    public int vaultOver;
     public int climbLadder;
     public int jumpToBracedHang;
     public int bracedHang;
@@ -49,6 +50,7 @@ public class AnimationScript : MonoBehaviour
         stand = Animator.StringToHash("Stand");
         crouch = Animator.StringToHash("Crouch");
         sprint = Animator.StringToHash("Sprint");
+        vaultOver = Animator.StringToHash("Vault");
         climbLadder = Animator.StringToHash("Climb Ladder");
         jumpToBracedHang = Animator.StringToHash("Jump to Braced Hang");
         bracedHang = Animator.StringToHash("Braced Hang");

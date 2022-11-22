@@ -67,7 +67,6 @@ public class PlayerMovement : MonoBehaviour
     private float fallTimeoutDelta;
 
     public LayerMask GroundLayers;
-    public LayerMask ClimbLayers;
     public LayerMask ObstacleLayers;
     RaycastHit objectCollider;
     public bool obstacleDetected;
@@ -79,8 +78,9 @@ public class PlayerMovement : MonoBehaviour
     public bool isMoving;
     public bool isSprinting;
     public bool isCrouched;
+    public bool isVaultingOver;
     public bool isClimbing;
-    bool jumpToHang;
+    public bool jumpToHang;
     public bool isBracedHanging;
     public bool isFreeHanging;
     public bool isFighting;
@@ -152,7 +152,6 @@ public class PlayerMovement : MonoBehaviour
     {
         _controller.Move(movement.normalized * (speed * Time.deltaTime));
         GroundedCheck();
-        ClimbCheck();
         ObstacleCheck();
     }
 
@@ -219,20 +218,6 @@ public class PlayerMovement : MonoBehaviour
         _animator.SetBool(_animation.grounded, isGrounded);
     }
 
-    private void ClimbCheck()
-    {
-        canClimb = Physics.Raycast(transform.position, transform.forward * 0.5f, out objectCollider, 0.5f, ClimbLayers);
-        if (canClimb)
-        {
-            Debug.DrawRay(transform.position, transform.forward * 0.5f, Color.green, 0.5f);
-            Debug.Log("can climb" + objectCollider.collider.name);
-        }
-        else
-        {
-            Debug.DrawRay(transform.position, transform.forward * 0.5f, Color.yellow, 0.5f);
-        }
-    }
-
     private void ObstacleCheck()
     {
         obstacleDetected = Physics.Raycast(_obstacleDetector.transform.position, _obstacleDetector.transform.up * -50f, out objectCollider, 50f, ObstacleLayers);
@@ -241,16 +226,25 @@ public class PlayerMovement : MonoBehaviour
             Debug.DrawRay(_obstacleDetector.transform.position, _obstacleDetector.transform.up * -50f, Color.green, 0.5f);
             Debug.Log("obstacle detected" + objectCollider.collider.name);
 
-            Vector3 obstaclePosition = objectCollider.point;
-            heightOfObstacle = Vector3.Distance(obstaclePosition, _groundReference.transform.position);
+            /*Vector3 obstaclePosition = objectCollider.point;
+            heightOfObstacle = Vector3.Distance(obstaclePosition, _groundReference.transform.position);*/
+
+            if (objectCollider.collider.gameObject.layer == LayerMask.NameToLayer("Vault"))
+                {
+                    canHang = true;
+                }
+            if (objectCollider.collider.gameObject.layer == LayerMask.NameToLayer("Ledge"))
+                {
+                    canVaultOver = true;
+                }
         }
         else
         {
             Debug.DrawRay(_obstacleDetector.transform.position, _obstacleDetector.transform.up * -50f, Color.yellow, 0.5f);
         }
 
-        canHang = obstacleDetected && heightOfObstacle > 2f && heightOfObstacle < 2.5f;
-        canVaultOver = obstacleDetected && heightOfObstacle > 0.5f && heightOfObstacle < 1f;
+
+        
 
         //to do list :
         //very small height : step over the obstacle
@@ -315,6 +309,18 @@ public class PlayerMovement : MonoBehaviour
             {
                 ChangeState(STATE.HANG);
                 isBracedHanging = true;
+                _input.crouch = false;
+                _input.combat = false;
+
+                if (_input.move != Vector2.zero)
+                {
+                    targetSpeed = hangSpeed;
+                }
+            }
+            else if (canVaultOver) //vault over
+            {
+                
+                isVaultingOver = true;
                 _input.crouch = false;
                 _input.combat = false;
 
