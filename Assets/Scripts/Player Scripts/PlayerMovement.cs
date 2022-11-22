@@ -73,13 +73,7 @@ public class PlayerMovement : MonoBehaviour
     public bool obstacleDetected;
     public float heightOfObstacle;
 
-    //inputs
-    public bool inputMovePressed;
-    public bool inputClimbTrue;
-    public bool inputCrouchTrue;    
-    public bool inputSprintTrue;
-    public bool inputCombatTrue;
-    public bool inputAttackTrue;
+
 
     //states
     public bool isMoving;
@@ -156,6 +150,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
+        _controller.Move(movement.normalized * (speed * Time.deltaTime));
         GroundedCheck();
         ClimbCheck();
         ObstacleCheck();
@@ -164,21 +159,6 @@ public class PlayerMovement : MonoBehaviour
     private void Update()
     {
         targetSpeed = walkSpeed;
-
-        //input accessibility
-        canMove = _input.canMove;
-        canSprint = _input.canSprint;
-        canCrouch = _input.canCrouch;
-        canFight = _input.canFight;
-        canAttack = _input.canAttack;
-
-        //input called
-        inputMovePressed = _input.move != Vector2.zero;
-        inputCombatTrue = _input.combat; //toggle
-        inputCrouchTrue = _input.crouch; //toggle
-        inputClimbTrue = _input.climb;
-        inputSprintTrue = _input.sprint; //hold
-        inputAttackTrue = _input.attack; //hold
 
         switch (currentState)
         {
@@ -192,13 +172,13 @@ public class PlayerMovement : MonoBehaviour
                 
                 break;
             case STATE.CLIMB:
-                canSprint = false;
+
                 break;
             case STATE.HANG:
-                canSprint = false;
+
                 break;
             case STATE.COMBAT:
-                _input.canAttack = true;
+
                 break;
             case STATE.ATTACK:
                 
@@ -213,7 +193,7 @@ public class PlayerMovement : MonoBehaviour
 
         totalStealth = baseStealth - noise;
 
-        Move();
+        Input();
         JumpAndGravity();
         Death();
 
@@ -269,7 +249,8 @@ public class PlayerMovement : MonoBehaviour
             Debug.DrawRay(_obstacleDetector.transform.position, _obstacleDetector.transform.up * -50f, Color.yellow, 0.5f);
         }
 
-        canHang = obstacleDetected && heightOfObstacle > 1f && heightOfObstacle < 3f;
+        canHang = obstacleDetected && heightOfObstacle > 2f && heightOfObstacle < 2.5f;
+        canVaultOver = obstacleDetected && heightOfObstacle > 0.5f && heightOfObstacle < 1f;
 
         //to do list :
         //very small height : step over the obstacle
@@ -279,9 +260,15 @@ public class PlayerMovement : MonoBehaviour
         //very high height : jump to climb over the obstacle
     }
 
-    private void Move()
+    private void Input()
     {
-        //move
+        //default
+        if (!isSprinting && !isCrouched && !isClimbing && !isBracedHanging && !isFighting)
+        {
+            ChangeState(STATE.DEFAULT);
+        }
+
+        //movement
         if (isClimbing)
         {
             movement = transform.up * _input.move.y;
@@ -295,56 +282,80 @@ public class PlayerMovement : MonoBehaviour
             movement = transform.right * _input.move.x + transform.forward * _input.move.y;
         }
 
-        _controller.Move(movement.normalized * (speed * Time.deltaTime));
-
         //idle
-        if (!inputMovePressed)
+        if (_input.move == Vector2.zero)
         {
             targetSpeed = 0;
         }
 
-        //default
-        if (!isSprinting && !isCrouched && !isFighting && !isClimbing)
-        {
-            ChangeState(STATE.DEFAULT);
-        }
-
         //rotate on move
-        if (canMove && inputMovePressed && !isClimbing && !isBracedHanging)
+        if (_input.canMove && _input.move != Vector2.zero && !isClimbing && !isBracedHanging)
         {
             float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _mainCamera.transform.eulerAngles.y, ref rotationVelocity, rotationSpeed);
             Quaternion targetRotation = Quaternion.Euler(0, rotation, 0);
             transform.rotation = targetRotation;
         }
 
-        //sprint
-        if (canSprint && inputSprintTrue && !isClimbing && !inputCombatTrue)
+        //freerun
+        if (_input.sprint)
         {
-            if (inputMovePressed)
+            if (canClimb) //climb
             {
-                if(!noiseGenerated)
+                ChangeState(STATE.CLIMB);
+                isClimbing = true;
+                _input.crouch = false;
+                _input.combat = false;
+
+                if (_input.move != Vector2.zero)
                 {
-                    StartCoroutine(CreateNoise());
-                    Debug.Log("noise created");
+                    targetSpeed = climbSpeed;
                 }
+            }
+            else if (canHang) //hang
+            {
+                ChangeState(STATE.HANG);
+                isBracedHanging = true;
+                _input.crouch = false;
+                _input.combat = false;
+
+                if (_input.move != Vector2.zero)
+                {
+                    targetSpeed = hangSpeed;
+                }
+            }
+            else if (_input.move != Vector2.zero) //sprint
+            {
                 ChangeState(STATE.SPRINT);
                 isSprinting = true;
                 targetSpeed = sprintSpeed;
                 _input.crouch = false;
+
+                if (!noiseGenerated)
+                {
+                    StartCoroutine(CreateNoise());
+                    Debug.Log("noise created");
+                }
             }
             else
             {
-                ChangeState(STATE.DEFAULT);
-                isSprinting=false;
+                isClimbing = false;
+                isBracedHanging = false;
+                isSprinting = false;
             }
+        }
+        else
+        {
+            isClimbing = false;
+            isBracedHanging = false;
+            isSprinting = false;
         }
 
         //crouch
-        if (canCrouch && inputCrouchTrue)
+        if (_input.crouch)
         {
             ChangeState(STATE.CROUCH);
             isCrouched = true;
-            targetSpeed = inputMovePressed ? sneakSpeed : 0;
+            targetSpeed = _input.move != Vector2.zero ? sneakSpeed : 0;
             _playerCameraRoot.transform.position = new Vector3(transform.position.x, transform.position.y + 0.8f, transform.position.z);
             _interactor.transform.position = new Vector3(transform.position.x, transform.position.y + 0.8f, transform.position.z);
             _playerHead.transform.position = new Vector3(transform.position.x, transform.position.y + 0.8f, transform.position.z);
@@ -356,66 +367,21 @@ public class PlayerMovement : MonoBehaviour
             _interactor.transform.position = new Vector3(transform.position.x, transform.position.y + 1.5f, transform.position.z);
             _playerHead.transform.position = new Vector3(transform.position.x, transform.position.y + 1.5f, transform.position.z);
         }
-        
-        //climb
-        if (canClimb && inputSprintTrue)
-        {
-            ChangeState(STATE.CLIMB);
-            isClimbing = true;
-            _input.crouch = false;
-            _input.combat = false;
-
-            if (inputMovePressed)
-            {
-                targetSpeed = climbSpeed;
-            }
-
-        }
-        else
-        {
-            ChangeState(STATE.DEFAULT);
-            isClimbing = false;
-        }
-
-        //hang
-        if (canHang)
-        {
-            canSprint = false;
-            if (inputSprintTrue)
-            {
-                ChangeState(STATE.HANG);
-                _input.crouch = false;
-                _input.combat = false;
-
-                if (inputMovePressed)
-                {
-                    targetSpeed = hangSpeed;
-                }
-            }
-            //isBracedHanging = true;
-        }
-        else
-        {
-            ChangeState(STATE.DEFAULT);
-            canSprint = true;
-            //isBracedHanging = false;
-        }
 
         //combat
-        if (canFight && inputCombatTrue)
+        if (_input.combat && _input.canFight)
         {
-            _unsheathedWeapon.SetActive(true);
             ChangeState(STATE.COMBAT);
             isFighting = true;
+            _unsheathedWeapon.SetActive(true);
             _input.crouch = false;
-
-            if(inputSprintTrue)
+            _input.canAttack = true;
+            if (_input.sprint)
             {
-                if (inputMovePressed)
+                if (_input.move != Vector2.zero)
                 {
                     targetSpeed = sprintSpeed;
                     canAttack = false;
-                    inputAttackTrue = false;
                     _input.attack = false;
                 }
                 else
@@ -423,32 +389,35 @@ public class PlayerMovement : MonoBehaviour
                     targetSpeed = 0;
                     canAttack = true;
                 }
-
-            }
+            }     
         }
         else
         {
-            _unsheathedWeapon.SetActive(false);
+            _input.canAttack = false;
             isFighting = false;
+            _unsheathedWeapon.SetActive(false);
         }
 
         //attack
-        if (canAttack && inputAttackTrue && !isAttacking)
+        if (_input.attack)
         {
-            float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _mainCamera.transform.eulerAngles.y, ref rotationVelocity, rotationSpeed);
-            Quaternion targetRotation = Quaternion.Euler(0, rotation, 0);
-            transform.rotation = targetRotation;
-            StartCoroutine(Attack());
+            if (!isAttacking)
+            {
+                float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _mainCamera.transform.eulerAngles.y, ref rotationVelocity, rotationSpeed);
+                Quaternion targetRotation = Quaternion.Euler(0, rotation, 0);
+                transform.rotation = targetRotation;
+                StartCoroutine(Attack());
+            }
         }
 
         //smooth speed change
         float currentHorizontalSpeed = new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
         float speedOffset = 0.1f;
         float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
-        if (canMove)
+        if (_input.canMove)
         {
-            if (currentHorizontalSpeed < targetSpeed - speedOffset ||
-                currentHorizontalSpeed > targetSpeed + speedOffset)
+            if (currentHorizontalSpeed < targetSpeed - speedOffset
+                || currentHorizontalSpeed > targetSpeed + speedOffset)
             {
                 speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed * inputMagnitude,
                     Time.deltaTime * speedChangeRate);
@@ -464,45 +433,31 @@ public class PlayerMovement : MonoBehaviour
             speed = 0.0f;
         }
 
-        
+        //animations
 
         animationBlend = Mathf.Lerp(animationBlend, targetSpeed, Time.deltaTime * speedChangeRate);
         if (animationBlend < 0.01f) animationBlend = 0f;
-
-        //animations
+        
         _animator.SetFloat(_animation.speed, animationBlend);
         _animator.SetFloat(_animation.xAxis, _input.move.x);
         _animator.SetFloat(_animation.yAxis, _input.move.y);
         _animator.SetFloat(_animation.motionSpeed, inputMagnitude);
-        if (canSprint && inputSprintTrue) _animator.SetBool(_animation.sprint, true);
+
+        if (isSprinting) _animator.SetBool(_animation.sprint, true);
         else _animator.SetBool(_animation.sprint, false);
-        if (canClimb && inputSprintTrue) _animator.SetBool(_animation.climbLadder, true);
+
+        if (isClimbing) _animator.SetBool(_animation.climbLadder, true);
         else _animator.SetBool(_animation.climbLadder, false);
-        if (canHang && inputSprintTrue)
-        {
-            isBracedHanging = true;
-            _animator.SetBool(_animation.bracedHang, true);
-            /*if (!isBracedHanging)
-            {
-                isBracedHanging = true;
-                _animator.SetTrigger(_animation.jumpToBracedHang);
-            }
-            else
-            {
-                _animator.SetBool(_animation.bracedHang, true);
-            }*/
-        }
-        else
-        {
-            _animator.SetBool(_animation.bracedHang, false);
-            isBracedHanging = false;
-        }
-        
-        if (canCrouch && inputCrouchTrue) _animator.SetBool(_animation.crouch, true);
+
+        if (isBracedHanging) _animator.SetBool(_animation.bracedHang, true);   
+        else _animator.SetBool(_animation.bracedHang, false);
+
+        if (isCrouched) _animator.SetBool(_animation.crouch, true);
         else _animator.SetBool(_animation.crouch, false);
-        if (canFight && inputCombatTrue)
+
+        if (isFighting)
         {
-            if (inputSprintTrue && inputMovePressed)
+            if (_input.sprint && _input.move != Vector2.zero)
             {
                 _animator.SetBool(_animation.sprint, true);
                 _animator.SetBool(_animation.combat, false);

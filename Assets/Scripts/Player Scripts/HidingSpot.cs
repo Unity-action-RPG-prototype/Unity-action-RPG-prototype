@@ -9,7 +9,7 @@ public class HidingSpot : MonoBehaviour
 
     public void OnTriggerEnter(Collider player)
     {
-        if (_playerMovement.inputCrouchTrue)
+        if (_playerMovement.isCrouched)
         {
             _playerMovement.isHidden = true;
         }
@@ -21,7 +21,7 @@ public class HidingSpot : MonoBehaviour
 
     public void OnTriggerStay(Collider player)
     {
-        if (_playerMovement.inputCrouchTrue)
+        if (_playerMovement.isCrouched)
         {
             _playerMovement.isHidden = true;
         }

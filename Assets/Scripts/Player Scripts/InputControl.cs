@@ -34,7 +34,7 @@ public class InputControl : MonoBehaviour
     public bool canJump;
     public bool canFight;
     public bool canAttack;
-    
+
     //movement settings
     public bool analogMovement;
 
@@ -58,7 +58,7 @@ public class InputControl : MonoBehaviour
     public void OnMove(InputValue inputValue)
     {
         if (canMove) Move(inputValue.Get<Vector2>());
-  
+
     }
 
     public void OnLook(InputValue inputValue)
@@ -80,34 +80,34 @@ public class InputControl : MonoBehaviour
         if (canSprint) Sprint(inputValue.isPressed);
     }
 
-    public void OnCrouch(InputValue inputValue)
+    public void OnCrouch()
     {
-        if (canCrouch) Crouch(inputValue.isPressed);
+        if (canCrouch) Crouch();
     }
 
-    public void OnClimb(InputValue inputValue)
+    public void OnClimb()
     {
         StartCoroutine(Climb());
     }
 
-    public void OnInteract(InputValue inputValue)
+    public void OnInteract()
     {
         StartCoroutine(Interact());
     }
 
-    public void OnPickpocket(InputValue inputValue)
+    public void OnPickpocket()
     {
         StartCoroutine(Pickpocket());
     }
 
-    public void OnAssassinate(InputValue inputValue)
+    public void OnAssassinate()
     {
         StartCoroutine(Assassinate());
     }
 
-    public void OnCombat(InputValue inputValue)
+    public void OnCombat()
     {
-        if (canFight) Combat(inputValue.isPressed);
+        if (canFight) Combat();
     }
 
     //input called
@@ -139,7 +139,7 @@ public class InputControl : MonoBehaviour
         Debug.Log("sprint is pressed");
     }
 
-    public void Crouch(bool newCrouchState)
+    public void Crouch()
     {
         crouch = !crouch;
         Debug.Log("crouch is pressed");
@@ -177,7 +177,7 @@ public class InputControl : MonoBehaviour
         assassinate = false;
     }
 
-    public void Combat(bool newCombatState)
+    public void Combat()
     {
         combat = !combat;
         Debug.Log("combat is pressed");
